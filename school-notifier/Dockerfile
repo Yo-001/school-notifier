@@ -13,7 +13,7 @@ RUN dos2unix mvnw
 RUN chmod +x mvnw
 
 # Build da aplicaçao
-RUN ./mvnw dependency:go-offline -B
+RUN sh mvnw dependency:go-offline -B
 
 #-------Runtime stage-------
 FROM eclipse-temurin:21-jre
