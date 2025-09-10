@@ -5,14 +5,14 @@ FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
 #Copia tod o subprojeto
-COPY school-notifier/ ./school-notifier
+COPY . .
 
-WORKDIR /app/school-notifier
 RUN apt-get update && apt-get install -y dos2unix
 RUN dos2unix mvnw
 RUN chmod +x mvnw
 
-# Build da aplicaçao
+# Build da aplicacao
+RUN ./mvnw dependency:go-offline -B
 RUN sh mvnw clean package -DskipTests
 
 #-------Runtime stage-------
@@ -20,7 +20,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # Copia o JAR gerado
-COPY --from=build /app/school-notifier/target/*.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 
 # Expoe a porta do Spring Boot
 EXPOSE 8080
