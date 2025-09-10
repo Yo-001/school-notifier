@@ -19,14 +19,13 @@ public class WhatsAppService {
     @Value("${whatsapp.access.token}")
     private String accessToken;
 
-    @Value("${whatsapp.destination.number}")
-    private String destinationNumber;
+    @Value("${whatsapp.destination.numbers}")
+    private String destinationNumbers;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
 
-
-    public void sendPostNotification(Post post){
+    public void sendPostNotification(Post post) {
         String url = "https://graph.facebook.com/v22.0/" + phoneNumberId + "/messages";
 
         String title = post.getTitle() != null && !post.getTitle().isEmpty() ? post.getTitle() : "-";
@@ -34,41 +33,47 @@ public class WhatsAppService {
         String link = post.getLink() != null && !post.getLink().isEmpty() ? post.getLink() : "-";
         String date = post.getDate() != null && !post.getDate().isEmpty() ? post.getDate() : "-";
 
+        String[] numbers = destinationNumbers.split(",");
 
-        //Montando corpo da requisiçao
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("messaging_product", "whatsapp");
-        requestBody.put("to", destinationNumber);
-        requestBody.put("type", "template");
+        for (String number : numbers) {
+            number = number.trim();
 
-        Map<String, Object> template = new HashMap<>();
-        template.put("name", "new_post_alert");
-        template.put("language", Map.of("code", "pt_BR"));
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("type", "body");
-        body.put("parameters", new Object[]{
-                Map.of("type", "text", "text", title),
-                Map.of("type", "text", "text", summary),
-                Map.of("type", "text", "text", link),
-                Map.of("type", "text", "text", date)
-        });
+            //Montando corpo da requisiçao
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("messaging_product", "whatsapp");
+            requestBody.put("to", number);
+            requestBody.put("type", "template");
 
-        template.put("components", new Object[]{body});
-        requestBody.put("template", template);
+            Map<String, Object> template = new HashMap<>();
+            template.put("name", "new_post_alert");
+            template.put("language", Map.of("code", "pt_BR"));
 
-        //Headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(accessToken);
+            Map<String, Object> body = new HashMap<>();
+            body.put("type", "body");
+            body.put("parameters", new Object[]{
+                    Map.of("type", "text", "text", title),
+                    Map.of("type", "text", "text", summary),
+                    Map.of("type", "text", "text", link),
+                    Map.of("type", "text", "text", date)
+            });
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            template.put("components", new Object[]{body});
+            requestBody.put("template", template);
 
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-            System.out.println("Mensagem enviada com sucesso: " + response.getBody());
-        } catch (Exception e) {
-            System.err.println("Erro ao enviar mensagem WhatsApp: " + e.getMessage());
+            //Headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(accessToken);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            try {
+                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+                System.out.println("Mensagem enviada com sucesso: " + response.getBody());
+            } catch (Exception e) {
+                System.err.println("Erro ao enviar mensagem WhatsApp: " + e.getMessage());
+            }
         }
     }
 }
