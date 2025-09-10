@@ -8,7 +8,7 @@ WORKDIR /app
 COPY school-notifier/ ./school-notifier
 
 WORKDIR /app/school-notifier
-RUN chmod +x ./mvnw
+RUN chmod +x mvnw
 
 # Build da aplicaçao
 RUN ./mvnw dependency:go-offline -B
