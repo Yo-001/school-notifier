@@ -4,7 +4,7 @@ FROM eclipse-temurin:21-jdk AS build
 # Define o diretório de trabalho
 WORKDIR /app
 
-#Copia todo o subprojeto
+#Copia tod o subprojeto
 COPY school-notifier/ ./school-notifier/
 
 WORKDIR /app/school-notifier
