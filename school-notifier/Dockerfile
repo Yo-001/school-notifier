@@ -5,13 +5,13 @@ FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
 #Copia tod o subprojeto
-COPY school-notifier/ ./school-notifier/
+COPY school-notifier/ ./school-notifier
 
 WORKDIR /app/school-notifier
 RUN chmod +x ./mvnw
 
 # Build da aplicaçao
-RUN ./mvnw clean package -DskipTests
+RUN ./mvnw dependency:go-offline -B
 
 #-------Runtime stage-------
 FROM eclipse-temurin:21-jre
