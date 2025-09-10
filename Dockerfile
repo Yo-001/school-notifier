@@ -7,6 +7,11 @@ WORKDIR /app
 # Copia o wrapper e o pom.xml
 COPY school-notifier/mvnw .
 COPY school-notifier/.mvn .mvn
+
+# Dá permissao de execuçao ao mvnw
+RUN chmod +x ./mvnw
+
+#Copia o pom.xml primeiro para aproveitar cache do Docker
 COPY school-notifier/pom.xml .
 
 # Faz o download das dependências
