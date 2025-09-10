@@ -5,15 +5,15 @@ FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
 # Copia o wrapper e o pom.xml
-COPY mvnw .
-COPY .mvn .mvn
-COPY pom.xml .
+COPY school-notifier/mvnw .
+COPY school-notifier/.mvn .mvn
+COPY school-notifier/pom.xml .
 
 # Faz o download das dependências
 RUN ./mvnw dependency:go-offline -B
 
 # Copia o código fonte
-COPY src src
+COPY school-notifier/src src
 
 # Build da aplicaçao
 RUN ./mvnw clean package -DskipTests
