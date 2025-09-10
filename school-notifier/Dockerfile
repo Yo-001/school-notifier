@@ -8,12 +8,12 @@ WORKDIR /app
 COPY . .
 
 RUN apt-get update && apt-get install -y dos2unix
-RUN dos2unix mvnw
-RUN chmod +x mvnw
+RUN dos2unix ./mvnw
+RUN chmod +x ./mvnw
 
 # Build da aplicacao
 RUN ./mvnw dependency:go-offline -B
-RUN sh mvnw clean package -DskipTests
+RUN ./mvnw mvnw clean package -DskipTests
 
 #-------Runtime stage-------
 FROM eclipse-temurin:21-jre
