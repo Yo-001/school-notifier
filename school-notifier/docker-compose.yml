@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
       POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      POSTGRES_DB: school-notifier-db
+      POSTGRES_DB: school_notifer_db
     ports:
       - "5432:5432"
     networks:
