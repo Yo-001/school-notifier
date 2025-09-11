@@ -6,7 +6,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN ./mvnw clean package -DskipTests
+RUN mvnq.cmd clean package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
