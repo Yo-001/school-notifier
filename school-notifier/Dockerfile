@@ -6,7 +6,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN mvnw.cmd clean package -DskipTests
+RUN chmod +x ./school-notifier/mvnw
+RUN ./school-notifier/mvnw clean package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
