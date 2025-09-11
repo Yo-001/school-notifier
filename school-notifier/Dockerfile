@@ -4,7 +4,14 @@ FROM eclipse-temurin:21-jdk AS build
 # Define o diretório de trabalho
 WORKDIR /app
 
-COPY target/school-notifier-0.0.1-SNAPSHOT.jar app.jar
+COPY . .
+
+RUN ./mvnw clean package -DskipTests
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+
+COPY --from=build /app/target/school-notifier-0.0.1-SNAPSHOT.jar app.jar
 
 # Expoe a porta do Spring Boot
 EXPOSE 8080
