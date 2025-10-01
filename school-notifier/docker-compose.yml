@@ -1,27 +1,11 @@
-services:
-  db:
-    image: postgres:15
-    container_name: postgres_db
-    environment:
-      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
-      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      POSTGRES_DB: school_notifer_db
-    ports:
-      - "5432:5432"
-    networks:
-      - app-network
+version: "3.9"
 
+services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: school_notifier_app
-    depends_on:
-      - db
-    environment:
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
     ports:
       - "8080:8080"
     networks:
