@@ -22,8 +22,12 @@ public class WhatsAppService {
     @Value("${whatsapp.destination.numbers}")
     private String destinationNumbers;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
+
+    public WhatsAppService(RestTemplate restTemplate){
+        this.restTemplate = restTemplate;
+    }
 
     public void sendPostNotification(Post post) {
         String url = "https://graph.facebook.com/v22.0/" + phoneNumberId + "/messages";

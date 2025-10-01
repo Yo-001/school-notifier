@@ -7,7 +7,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableJpaRepositories(basePackages = "com.leo.whatsappbot.school_notifier.repository")
 public class SchoolNotifierApplication {
 
 	public static void main(String[] args) {

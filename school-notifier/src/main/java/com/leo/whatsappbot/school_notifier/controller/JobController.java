@@ -15,7 +15,7 @@ public class JobController {
 
     private final PostScheduler scheduler;
 
-    @Value("${app.job.token")
+    @Value("${app.job.token}")
     private String jobToken;
 
 
