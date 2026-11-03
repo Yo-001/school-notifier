@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>CEIP Xosé Fernández López</title>
+<link>https://www.edu.xunta.gal/centros/ceipxosefernandez/rss.xml</link>
+<description>Publicações da escola</description>
+<item>
+<title>Nota de exemplo</title>
+<link>https://www.edu.xunta.gal/centros/ceipxosefernandez/node/500</link>
+<guid>https://www.edu.xunta.gal/centros/ceipxosefernandez/node/500</guid>
+<pubDate>Mon, 01 Jan 2024 12:00:00 +0000</pubDate>
+<description>Resumo da nota.</description>
+</item>
+</channel>
+</rss>
