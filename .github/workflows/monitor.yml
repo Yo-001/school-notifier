@@ -15,7 +15,7 @@ jobs:
       contents: write  # needed to push state/seen.json
     concurrency:
       group: school-monitor
-      cancel-in-progress: false
+      cancel-in-progress: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
