@@ -51,6 +51,10 @@ def save_failure_count(cnt):
     json.dump(cnt, open(FAIL_COUNT_PATH, 'w'))
 
 def fetch_url(url, user_agent, timeout=20):
+    """Fetch a URL with retries.
+    First tries with the configured User‑Agent. If all attempts fail,
+    makes one final attempt using a generic User‑Agent ("python‑requests").
+    """
     headers = {'User-Agent': user_agent}
     for attempt in range(config['retry_attempts']):
         try:
@@ -58,11 +62,21 @@ def fetch_url(url, user_agent, timeout=20):
             resp.raise_for_status()
             return resp.text
         except Exception as e:
+            # Log for debugging (prints will appear in GitHub Actions log)
+            print(f'Attempt {attempt+1}/{config["retry_attempts"]} failed for {url}: {e}')
             if attempt < config['retry_attempts'] - 1:
                 backoff = config['retry_backoff_factor'] ** attempt
                 time.sleep(backoff)
             else:
-                raise e
+                # Final fallback with generic UA
+                try:
+                    print('Falling back to generic User‑Agent')
+                    resp = requests.get(url, timeout=timeout)
+                    resp.raise_for_status()
+                    return resp.text
+                except Exception as e2:
+                    print(f'Final fallback also failed: {e2}')
+                    raise e2
 
 def parse_rss(content):
     feed = feedparser.parse(content)
