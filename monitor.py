@@ -50,44 +50,63 @@ def save_failure_count(cnt):
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     json.dump(cnt, open(FAIL_COUNT_PATH, 'w'))
 
-def fetch_url(url, user_agent, timeout=60):
-    """Fetch a URL with retries and protocol fallback.
-    Tries the original URL (usually https). If all attempts fail due to a
-    connection timeout, it retries once using ``http://`` instead of ``https://``.
-    Finally, if still unsuccessful, falls back to a generic User‑Agent.
+def fetch_url(url: str, user_agent: str, timeout: int = 60) -> str:
+    """Fetch a URL with retries and progressive fallbacks.
+
+    1️⃣  Try the original HTTPS URL with the configured User‑Agent.
+    2️⃣  If all retries fail, try the same URL using plain HTTP.
+    3️⃣  If that also fails, retry without a custom User‑Agent.
+    4️⃣  As a last resort, request the page through the public
+        proxy https://r.jina.ai (which mirrors the target page).
+
+    Returns the raw response text or raises the final exception.
     """
-    headers = {'User-Agent': user_agent}
-    # primary attempts (configured UA)
-    for attempt in range(config['retry_attempts']):
+    headers = {"User-Agent": user_agent}
+
+    # ---------- 1️⃣ primary attempts (custom UA) ----------
+    for attempt in range(config["retry_attempts"]):
         try:
             resp = requests.get(url, headers=headers, timeout=timeout)
             resp.raise_for_status()
             return resp.text
         except Exception as e:
-            print(f'Attempt {attempt+1}/{config["retry_attempts"]} failed for {url}: {e}')
-            if attempt < config['retry_attempts'] - 1:
-                backoff = config['retry_backoff_factor'] ** attempt
+            print(
+                f"Attempt {attempt+1}/{config['retry_attempts']} failed for {url}: {e}"
+            )
+            if attempt < config["retry_attempts"] - 1:
+                backoff = config["retry_backoff_factor"] ** attempt
                 time.sleep(backoff)
-            else:
-                # last attempt – try http fallback if URL is https
-                if url.startswith('https://'):
-                    http_url = 'http://' + url[len('https://'):]
-                    try:
-                        print('Trying http fallback')
-                        resp = requests.get(http_url, headers=headers, timeout=timeout)
-                        resp.raise_for_status()
-                        return resp.text
-                    except Exception as e2:
-                        print(f'http fallback also failed: {e2}')
-                # final generic UA attempt
-                try:
-                    print('Falling back to generic User‑Agent')
-                    resp = requests.get(url, timeout=timeout)
-                    resp.raise_for_status()
-                    return resp.text
-                except Exception as e3:
-                    print(f'Final fallback also failed: {e3}')
-                    raise e3
+
+    # ---------- 2️⃣ HTTP fallback ----------
+    if url.startswith("https://"):
+        http_url = "http://" + url[len("https://"):]
+        try:
+            print("Trying HTTP fallback")
+            resp = requests.get(http_url, headers=headers, timeout=timeout)
+            resp.raise_for_status()
+            return resp.text
+        except Exception as e2:
+            print(f"HTTP fallback also failed: {e2}")
+
+    # ---------- 3️⃣ generic UA ----------
+    try:
+        print("Falling back to generic User‑Agent")
+        resp = requests.get(url, timeout=timeout)  # no custom UA
+        resp.raise_for_status()
+        return resp.text
+    except Exception as e3:
+        print(f"Generic UA fallback also failed: {e3}")
+
+    # ---------- 4️⃣ public proxy (r.jina.ai) ----------
+    proxy_url = f"https://r.jina.ai/http://{url.lstrip('https://')}"
+    try:
+        print("Trying public proxy (r.jina.ai)…")
+        resp = requests.get(proxy_url, timeout=timeout)
+        resp.raise_for_status()
+        return resp.text
+    except Exception as e4:
+        print(f"Proxy fallback also failed: {e4}")
+        raise e4
     """Fetch a URL with retries.
     First tries with the configured User‑Agent. If all attempts fail,
     makes one final attempt using a generic User‑Agent ("python‑requests").
