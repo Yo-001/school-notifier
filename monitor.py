@@ -50,7 +50,44 @@ def save_failure_count(cnt):
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     json.dump(cnt, open(FAIL_COUNT_PATH, 'w'))
 
-def fetch_url(url, user_agent, timeout=20):
+def fetch_url(url, user_agent, timeout=60):
+    """Fetch a URL with retries and protocol fallback.
+    Tries the original URL (usually https). If all attempts fail due to a
+    connection timeout, it retries once using ``http://`` instead of ``https://``.
+    Finally, if still unsuccessful, falls back to a generic User‑Agent.
+    """
+    headers = {'User-Agent': user_agent}
+    # primary attempts (configured UA)
+    for attempt in range(config['retry_attempts']):
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout)
+            resp.raise_for_status()
+            return resp.text
+        except Exception as e:
+            print(f'Attempt {attempt+1}/{config["retry_attempts"]} failed for {url}: {e}')
+            if attempt < config['retry_attempts'] - 1:
+                backoff = config['retry_backoff_factor'] ** attempt
+                time.sleep(backoff)
+            else:
+                # last attempt – try http fallback if URL is https
+                if url.startswith('https://'):
+                    http_url = 'http://' + url[len('https://'):]
+                    try:
+                        print('Trying http fallback')
+                        resp = requests.get(http_url, headers=headers, timeout=timeout)
+                        resp.raise_for_status()
+                        return resp.text
+                    except Exception as e2:
+                        print(f'http fallback also failed: {e2}')
+                # final generic UA attempt
+                try:
+                    print('Falling back to generic User‑Agent')
+                    resp = requests.get(url, timeout=timeout)
+                    resp.raise_for_status()
+                    return resp.text
+                except Exception as e3:
+                    print(f'Final fallback also failed: {e3}')
+                    raise e3
     """Fetch a URL with retries.
     First tries with the configured User‑Agent. If all attempts fail,
     makes one final attempt using a generic User‑Agent ("python‑requests").
