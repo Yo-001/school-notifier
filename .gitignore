@@ -10,6 +10,7 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+state_test/
 
 # IDE
 .idea/

@@ -1,15 +1,14 @@
 # Monitor de Publicações da Escola CEIP Xosé Fernández López
 
-Este repositório contém um script Python que monitora o site da escola **CEIP Plurilingüe Xosé Fernández López** (https://www.edu.xunta.gal/centros/ceipxosefernandez) e envia um e‑mail sempre que uma nova publicação (node) for adicionada.
+Este repositório contém um script Python que monitora o feed RSS da escola **CEIP Plurilingüe Xosé Fernández López** (https://www.edu.xunta.gal/centros/ceipxosefernandez) e envia um e‑mail sempre que uma nova publicação for adicionada.
 
 ## Funcionalidades
-- Usa o *feed RSS* oficial como primeira fonte de dados.
-- Caso o RSS falhe ou esteja vazio, faz *fallback* ao parser do HTML da página de listagem (`/node`).
+- Usa o *feed RSS* oficial como fonte de dados (fonte única e limpa).
 - Mantém um estado local (`state/seen.json`) com os últimos 500 IDs já processados.
 - Envia um e‑mail (SMTP Gmail) contendo título, link, data e resumo das novas publicações. Se houver várias novidades, elas são enviadas em um único e‑mail.
 - Suporta `--dry-run` para depuração (imprime o que seria enviado).
-- Tenta 3 vezes com back‑off exponencial antes de considerar a execução falha.
-- Após 3 falhas consecutivas (dias) envia um e‑mail de alerta.
+- Tenta 3 vezes com back‑off exponencial + 1 tentativa final sem User‑Agent custom.
+- Em caso de falha total na coleta, envia um e‑mail de alerta imediatamente.
 - Pode ser executado automaticamente via **GitHub Actions** todos os dias às 07:00 UTC.
 
 ## Configuração
@@ -18,7 +17,7 @@ Este repositório contém um script Python que monitora o site da escola **CEIP 
    - `GMAIL_USER` – endereço de e‑mail da conta Gmail.
    - `GMAIL_APP_PASSWORD` – o app‑password gerado.
    - `TO_EMAIL` – endereço de destino (pode ser o mesmo ou outro).
-3. Opcionalmente ajuste `config.yaml` se desejar mudar URLs, seletores ou assunto do e‑mail.
+3. Opcionalmente ajuste `config.yaml` se desejar mudar a URL do RSS ou o assunto do e‑mail.
 
 ## Como usar
 - **Execução local** (para teste ou depuração):
@@ -41,7 +40,6 @@ school_monitor/
 │  └─ seen.json               # IDs já vistos (gerado na primeira execução)
 ├─ tests/
 │  ├─ fixtures/
-│  │   ├─ sample.html        # HTML de exemplo da página /node
 │  │   └─ sample.rss         # RSS de exemplo
 │  └─ test_monitor.py       # Testes com pytest
 ├─ config.yaml                # Configurações do monitor

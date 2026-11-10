@@ -14,36 +14,35 @@ Garantir que os pais nunca percam avisos críticos, prazos de matrículas, festi
 
 ## 3. O que Já Foi Feito
 
-- **Arquitetura de Extração Resiliente (`monitor.py`):**
-  - **Estratégia 1:** Ingestão via Feed RSS oficial (`/rss.xml`).
-  - **Estratégia 2:** Fallback para scraping HTML da listagem (`/node`) com BeautifulSoup caso o RSS falhe ou esteja vazio.
-  - **Mecanismo de Resiliência de Rede:** Fallback progressivo de requisições (HTTPS -> HTTP -> Sem custom User-Agent -> Proxy público Jina Reader `https://r.jina.ai`).
+- **Extração via RSS (`monitor.py`):**
+  - Ingestão via Feed RSS oficial (`/rss.xml`) como **fonte única e limpa** (removido o fallback HTML).
+  - **Resiliência de Rede:** retries com back-off exponencial (3x) + 1 tentativa final sem User-Agent custom.
 - **Gerenciamento de Estado (`state/seen.json`):**
-  - Controle persistente com histórico dos últimos 500 IDs/links já processados para evitar e-mails duplicados.
+  - Controle persistente com histórico dos últimos 500 IDs já processados para evitar e-mails duplicados.
 - **Sistema de Envio de E-mail:**
   - Formatação e disparo unificado via SMTP seguro (Gmail com App Password).
-  - Contador de falhas consecutivas (`failure_count.json`) com e-mail de alerta em caso de 3 falhas consecutivas.
+  - Em caso de falha total na coleta, envia e-mail de alerta **imediatamente** (removido o contador de 3 falhas).
 - **Modo Debug / Simulação:**
   - Flag `--dry-run` para testar localmente sem enviar e-mails reais.
 - **Automação CI/CD:**
   - Workflow do GitHub Actions configurado (`.github/workflows/monitor.yml`) para rodar via cron às 07:00 UTC (08:00 horário local).
 - **Testes Unitários:**
-  - Testes com `pytest` cobrindo parsers de RSS e HTML (`tests/test_monitor.py` e fixtures).
+  - Testes com `pytest` cobrindo o parser RSS, o fluxo de e-mail e o alerta de falha (`tests/test_monitor.py`).
 
 ---
 
 ## 4. Etapa Atual
 
-O pipeline base de scraping, persistência de estado e envio de e-mails está concluído e validado com testes. Estágio de produção configurado.
+O pipeline base de coleta RSS, persistência de estado e envio de e-mails está concluído e validado com testes. Estágio de produção configurado.
 
-1. Validação de credenciais e primeiro disparo real de homologação.
-2. Os comunicados estão em galego/espanhol formal e texto cru (nenhuma síntese automática).
+1. Validação de credenciais e disparo real de homologação.
+2. Os comunicados vêm em galego/espanhol formal e texto cru (nenhuma síntese automática).
 
 ---
 
 ## 5. Próximas Etapas para Operação Completa e Melhorias
 
-> **Nota (2026-11):** A síntese automática com IA (`gerar_resumo_inteligente`, dependente do serviço OmniRoute em `localhost:20128`) foi **removida** por falta de utilidade. O monitor voltou a operar sem dependência externa de IA, com custo zero garantido.
+> **Nota (2026-11):** A síntese automática com IA (`gerar_resumo_inteligente`, dependente do serviço OmniRoute) foi **removida** por falta de utilidade. O fallback de scraping HTML e o proxy público também foram removidos — o projeto opera agora exclusivamente via RSS, com custo zero e dependência mínima.
 
 ### Etapa 5.1: Ativação dos Secrets no GitHub
 
