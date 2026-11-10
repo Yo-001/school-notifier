@@ -50,6 +50,7 @@ def save_failure_count(cnt):
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     json.dump(cnt, open(FAIL_COUNT_PATH, 'w'))
 
+
 def fetch_url(url: str, user_agent: str, timeout: int = 60) -> str:
     """Fetch a URL with retries and progressive fallbacks.
 
@@ -107,32 +108,7 @@ def fetch_url(url: str, user_agent: str, timeout: int = 60) -> str:
     except Exception as e4:
         print(f"Proxy fallback also failed: {e4}")
         raise e4
-    """Fetch a URL with retries.
-    First tries with the configured User‑Agent. If all attempts fail,
-    makes one final attempt using a generic User‑Agent ("python‑requests").
-    """
-    headers = {'User-Agent': user_agent}
-    for attempt in range(config['retry_attempts']):
-        try:
-            resp = requests.get(url, headers=headers, timeout=timeout)
-            resp.raise_for_status()
-            return resp.text
-        except Exception as e:
-            # Log for debugging (prints will appear in GitHub Actions log)
-            print(f'Attempt {attempt+1}/{config["retry_attempts"]} failed for {url}: {e}')
-            if attempt < config['retry_attempts'] - 1:
-                backoff = config['retry_backoff_factor'] ** attempt
-                time.sleep(backoff)
-            else:
-                # Final fallback with generic UA
-                try:
-                    print('Falling back to generic User‑Agent')
-                    resp = requests.get(url, timeout=timeout)
-                    resp.raise_for_status()
-                    return resp.text
-                except Exception as e2:
-                    print(f'Final fallback also failed: {e2}')
-                    raise e2
+
 
 def parse_rss(content):
     feed = feedparser.parse(content)
@@ -192,13 +168,14 @@ def parse_html(content):
 def send_email(new_items, dry_run=False):
     if not new_items:
         return
+    
     subject = f"{config['email_subject_prefix']} Novas publicações"
     body_lines = []
     for it in new_items:
         body_lines.append(f"Título: {it['title']}")
         body_lines.append(f"Link: {it['link']}")
         body_lines.append(f"Data: {it['date']}")
-        if it['summary']:
+        if it.get('summary'):
             body_lines.append(f"Resumo: {it['summary']}")
         body_lines.append('')
     body = '\n'.join(body_lines)

@@ -4,10 +4,10 @@ rss_url: https://www.edu.xunta.gal/centros/ceipxosefernandez/rss.xml
 html_url: https://www.edu.xunta.gal/centros/ceipxosefernandez/node
 # CSS selectors for fallback HTML parsing (if needed)
 html_selector:
-  entry: "h2 a"   # selector to find links to nodes
-  date: "p"        # simple placeholder; actual parsing will extract text after the link
+  entry: "h2 a" # selector to find links to nodes
+  date: "p" # simple placeholder; actual parsing will extract text after the link
 email_subject_prefix: "[CEIP Xosé Fernández]"
 user_agent: "school-monitor/1.0 (contact: {to_email})"
 retry_attempts: 3
-retry_backoff_factor: 2  # exponential backoff multiplier
+retry_backoff_factor: 2 # exponential backoff multiplier
 max_seen_ids: 500
