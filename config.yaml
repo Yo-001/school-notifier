@@ -1,8 +1,0 @@
-# Configuration for the school monitor
-
-rss_url: https://www.edu.xunta.gal/centros/ceipxosefernandez/rss.xml
-email_subject_prefix: "[CEIP Xosé Fernández]"
-user_agent: "school-monitor/1.0 (contact: {to_email})"
-retry_attempts: 3
-retry_backoff_factor: 2 # exponential backoff multiplier
-max_seen_ids: 500

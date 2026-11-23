@@ -1,155 +1,117 @@
-import argparse
-import json
-import os
-import smtplib
-import ssl
-import sys
-import time
-from email.message import EmailMessage
-from pathlib import Path
+#!/usr/bin/env python3
+"""Monitor do feed RSS do CEIP Plurilingüe Xosé Fernández López (O Porriño,
+www.edu.xunta.gal). O portal da Xunta devolve HTTP 500 para IPs fóra de
+Europa (verificado: ES/DE/CH/IT/SE -> 200; US/BR/TR/UA -> 500). Este script
+debe rodar, pois, nunha máquina con IP europea (por exemplo unha VM Always
+Free de Oracle Cloud en Madrid, ou calquera VPS na UE). Se a conexión directa
+fallase, usa como relevo o proxy de tradución de Google (devolve o mesmo RSS
+byte a byte, só que tamén só para IPs europeas).
 
-import feedparser
-import requests
-import yaml
+Novos artigos son impresos en stdout e, se se indica --topic, enviados por
+push a ntfy.sh (sen rexistro; subscribirse en https://ntfy.sh/<topic>).
 
-CONFIG_PATH = Path(__file__).with_name('config.yaml')
-STATE_DIR = Path(__file__).parent / 'state'
-SEEN_PATH = STATE_DIR / 'seen.json'
+Uso:
+  python3 monitor.py --state /camiño/do/directorio --topic nome-do-topic
+Cron diario (crontab -e), p. ex. ás 06:30:
+  30 6 * * * cd /opt/edu-monitor && /usr/bin/python3 monitor.py --state . >> cron.log 2>&1
+"""
+import argparse, json, os, sys, time, urllib.request
+import xml.etree.ElementTree as ET
 
-
-def load_config():
-    with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
-
-
-def load_seen():
-    if SEEN_PATH.is_file():
-        try:
-            data = json.load(open(SEEN_PATH, 'r', encoding='utf-8'))
-            return set(data.get('ids', []))
-        except Exception:
-            return set()
-    return set()
+FEEDS = [
+    # 1º directo (funciona desde calquera IP europea)
+    "https://www.edu.xunta.gal/centros/ceipxosefernandez/rss.xml",
+    # 2º relevo de Google (mesmo contido; só desde IP europea)
+    "https://www-edu-xunta-gal.translate.goog/centros/ceipxosefernandez/rss.xml",
+    # 3º formulario antigo de Google Translate
+    "https://translate.google.com/translate?u=https://www.edu.xunta.gal/centros/ceipxosefernandez/rss.xml&sl=gl&tl=en",
+]
+UA = "Mozilla/5.0 (compatible; edu-monitor/1.0)"
 
 
-def save_seen(ids):
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    json.dump({'ids': list(ids)}, open(SEEN_PATH, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+def fetch(url, timeout=60):
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Accept": "application/rss+xml, application/xml, */*",
+    })
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read(2_000_000)
 
 
-def fetch_url(url: str, user_agent: str, timeout: int = 60) -> str:
-    """Fetch a URL with retries (exponential backoff) and one final attempt
-    without a custom User-Agent. Returns the raw response text or raises."""
-    headers = {"User-Agent": user_agent}
-    for attempt in range(config["retry_attempts"]):
-        try:
-            resp = requests.get(url, headers=headers, timeout=timeout)
-            resp.raise_for_status()
-            return resp.text
-        except Exception as e:
-            print(f"Attempt {attempt+1}/{config['retry_attempts']} failed for {url}: {e}")
-            if attempt < config["retry_attempts"] - 1:
-                backoff = config["retry_backoff_factor"] ** attempt
-                time.sleep(backoff)
-
-    # Final fallback: try once more without a custom User-Agent
-    print("Falling back to generic User-Agent")
-    resp = requests.get(url, timeout=timeout)
-    resp.raise_for_status()
-    return resp.text
-
-
-def parse_rss(content):
-    """Parse the school RSS feed. The feed's <guid> looks like
-    '481 at https://.../ceipxosefernandez', so the numeric node id is
-    taken from <link> (.../node/481)."""
-    feed = feedparser.parse(content)
-    items = []
-    for entry in feed.entries:
-        link = entry.get('link', '').strip()
-        try:
-            node_id = int(link.rstrip('/').split('/')[-1])
-        except Exception:
-            continue
-        items.append({
-            'id': node_id,
-            'title': entry.get('title', '').strip(),
-            'link': link,
-            'date': entry.get('published', entry.get('updated', '')).strip(),
-            'summary': entry.get('summary', '').strip()
-        })
-    return items
-
-
-def send_email(new_items, dry_run=False):
-    if not new_items:
-        return
-
-    subject = f"{config['email_subject_prefix']} Novas publicações"
-    body_lines = []
-    for it in new_items:
-        body_lines.append(f"Título: {it['title']}")
-        body_lines.append(f"Link: {it['link']}")
-        body_lines.append(f"Data: {it['date']}")
-        if it.get('summary'):
-            body_lines.append(f"Resumo: {it['summary']}")
-        body_lines.append('')
-    body = '\n'.join(body_lines)
-    if dry_run:
-        print('--- DRY RUN EMAIL ---')
-        print('Subject:', subject)
-        print(body)
-        return
-    msg = EmailMessage()
-    msg['Subject'] = subject
-    msg['From'] = os.getenv('GMAIL_USER')
-    msg['To'] = os.getenv('TO_EMAIL')
-    msg.set_content(body)
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as server:
-        server.login(os.getenv('GMAIL_USER'), os.getenv('GMAIL_APP_PASSWORD'))
-        server.send_message(msg)
+def parse_items(body):
+    root = ET.fromstring(body)
+    out = []
+    for it in root.iter("item"):
+        title = (it.findtext("title") or "").strip()
+        link = (it.findtext("link") or "").strip()
+        date = it.findtext("pubDate") or ""
+        if link:
+            out.append({"title": title, "link": link, "date": date.strip()})
+    return out
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Monitor school publications (RSS)')
-    parser.add_argument('--dry-run', action='store_true', help='Print actions instead of sending email')
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--state", default=os.path.dirname(os.path.abspath(__file__)),
+                    help="directorio onde gardar estado.json")
+    ap.add_argument("--topic", default=os.environ.get("NTFY_TOPIC", ""),
+                    help="topic de ntfy.sh para notificacións push (opcional)")
+    args = ap.parse_args()
+    os.makedirs(args.state, exist_ok=True)
+    state_path = os.path.join(args.state, "estado.json")
 
-    global config
-    config = load_config()
-    user_agent = config['user_agent'].format(to_email=os.getenv('TO_EMAIL', ''))
+    first_run = not os.path.exists(state_path)
+    visto = set()
+    if os.path.exists(state_path):
+        try:
+            visto = set(json.load(open(state_path)).get("vistos", []))
+        except Exception:
+            pass
 
-    # Fetch RSS (the only data source)
-    try:
-        rss_text = fetch_url(config['rss_url'], user_agent)
-        items = parse_rss(rss_text)
-        if not items:
-            raise ValueError('RSS parsed no items')
-    except Exception as e:
-        # Total failure -> alert immediately
-        alert_items = [{
-            'title': 'Falha ao coletar dados do feed RSS',
-            'link': '',
-            'date': '',
-            'summary': str(e),
-        }]
-        send_email(alert_items, dry_run=args.dry_run)
+    body, itens, erros = None, [], []
+    for u in FEEDS:
+        try:
+            b = fetch(u)
+            it = parse_items(b)
+            if it:
+                body, itens = b, it
+                break
+            erros.append(u + " (baleiro)")
+        except Exception as e:
+            erros.append(u + " -> " + str(e))
+
+    if body is None:
+        print("FALLOU obter o feed:")
+        for e in erros:
+            print("  " + e)
         sys.exit(1)
 
-    seen_ids = load_seen()
-    new_items = [it for it in items if it['id'] not in seen_ids]
-    if not seen_ids:
-        # First run: establish baseline, do not send email
-        new_items = []
-    if new_items:
-        send_email(new_items, dry_run=args.dry_run)
+    novos = [i for i in itens if i["link"] not in visto]
+    json.dump({
+        "vistos": sorted({i["link"] for i in itens} | visto),
+        "ultima": time.strftime("%Y-%m-%d %H:%M"),
+    }, open(state_path, "w"), ensure_ascii=False, indent=1)
 
-    # Update seen list, keep latest max_seen_ids (higher id = newer)
-    all_ids = {it['id'] for it in items}
-    combined_sorted = sorted(all_ids | seen_ids, reverse=True)[:config['max_seen_ids']]
-    save_seen(set(combined_sorted))
+    if first_run:
+        # primeira execução: grava o estado actual sem notificar
+        print("Primeira execução: %d artigos gravados como vistos (sen notificacións)." % len(itens))
+        sys.exit(0)
+
+    print("Feed OK: %d artigos totais, %d novos" % (len(itens), len(novos)))
+    for n in novos:
+        print("NOVO: %s | %s | %s" % (n["title"], n["link"], n["date"]))
+
+    if novos and args.topic:
+        for n in novos:
+            msg = "Novidade no CEIP Xosé Fernández López:\n%s\n%s" % (n["title"], n["link"])
+            r = urllib.request.Request(
+                "https://ntfy.sh/" + args.topic,
+                data=msg.encode("utf-8"),
+                headers={"Title": "CEIP Xosé Fdz. López", "Priority": "default"},
+            )
+            urllib.request.urlopen(r, timeout=30)
+    sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
